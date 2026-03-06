@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase 最小可行性測試</title>
+  <style>
+    body { 
+      font-family: sans-serif; display: flex; flex-direction: column; 
+      align-items: center; justify-content: center; height: 100vh; 
+      background-color: #222; color: white; margin: 0; 
+    }
+    .container { 
+      background: #333; padding: 40px; border-radius: 15px; 
+      text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+    }
+    button { 
+      padding: 15px 30px; font-size: 1.2rem; background-color: #3498db; 
+      color: white; border: none; border-radius: 8px; cursor: pointer; 
+      transition: 0.1s; margin-top: 20px; font-weight: bold;
+    }
+    button:active { transform: scale(0.95); background-color: #2980b9; }
+    #status { margin-top: 25px; font-size: 1.2rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>📡 Firebase 寫入測試</h2>
+    <p style="color: #aaa;">點擊下方按鈕，嘗試將一筆假資料寫入資料庫。</p>
+    
+    <button id="uploadBtn">點我傳送測試數據</button>
+    <div id="status">等待操作...</div>
+  </div>
+
+  <script type="module">
+    // 1. 引入 Firebase SDK
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // 2. 你的 Firebase 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyDig0LXShXvoUC-Q_jsB4fnt04ndT4AKMI",
+      authDomain: "fucking-semantic.firebaseapp.com",
+      projectId: "fucking-semantic",
+      storageBucket: "fucking-semantic.firebasestorage.app",
+      messagingSenderId: "121956643814",
+      appId: "1:121956643814:web:ca000fe3c3650602935c27"
+    };
+
+    // 3. 初始化
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 4. 按鈕點擊事件：執行寫入
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const statusEl = document.getElementById('status');
+      statusEl.innerText = "⏳ 正在連線並寫入 Firebase...";
+      statusEl.style.color = "#f1c40f";
+
+      try {
+        // 產生一個隨機 ID (例如: TEST_A1B2C3)
+        const randomId = "TEST_" + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        // 準備一筆假資料
+        const dummyData = {
+          subjectId: randomId,
+          message: "這是一筆測試寫入的資料！",
+          timestamp: new Date().toLocaleString("zh-TW"),
+          status: "Success"
+        };
+
+        // 執行寫入動作：存入 "results" 集合 (Collection) 中
+        await setDoc(doc(db, "results", randomId), dummyData);
+
+        // 如果成功執行到這行，代表寫入成功
+        statusEl.innerText = \`✅ 寫入成功！請至後台查看文件：\${randomId}\`;
+        statusEl.style.color = "#2ecc71";
+        
+      } catch (error) {
+        // 如果失敗，會在畫面上印出錯誤原因
+        console.error("Firebase 寫入失敗:", error);
+        statusEl.innerText = \`❌ 失敗: \${error.message}\`;
+        statusEl.style.color = "#e74c3c";
+      }
+    });
+  </script>
+</body>
+</html>
