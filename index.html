@@ -2,34 +2,22 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>語意飽和測驗 (極簡穩定版)</title>
-  
-  <script src="https://unpkg.com/jspsych@7.3.3"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.2"></script>
-  <link href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css" rel="stylesheet">
-
-  <style>
-    /* 最基礎、最穩定、不會出錯的版面設定 */
-    body { background-color: #222; color: #fff; font-family: sans-serif; }
-    .trial-box { margin-top: 10vh; padding: 40px; background: #333; border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-    .cue { font-size: 1.5rem; color: #aaa; margin-bottom: 20px; letter-spacing: 2px; }
-    .target { font-size: 4rem; font-weight: bold; color: #fff; }
-    .hint { font-size: 1.2rem; color: #f1c40f; margin-top: 40px; }
-    .btn-container { display: flex; justify-content: center; gap: 20px; margin-top: 30px; }
-    .btn { padding: 20px 40px; font-size: 1.5rem; font-weight: bold; color: white; border: none; border-radius: 10px; cursor: pointer; }
-    .btn-f { background-color: #2ecc71; }
-    .btn-j { background-color: #e74c3c; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>滑掉就回傳 (核心測試)</title>
 </head>
-<body>
+<body style="background:#222; color:#fff; font-family:sans-serif; text-align:center; padding-top:20vh;">
   
+  <h1 style="color:#f1c40f;">🔄 自動回傳測試</h1>
+  <p style="font-size:1.2rem; color:#ccc;">現在請直接「滑掉這個網頁」或「切換APP」！</p>
+  <p style="font-size:1rem; color:#888;">系統一偵測到你離開，就會瞬間背景上傳資料到 Firebase。</p>
+  
+  <h2 id="status" style="margin-top:50px; color:#3498db;">等待滑掉中... 👀</h2>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
     import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-    // 1. Firebase 初始化
+    // Firebase 初始化
     const firebaseConfig = {
       apiKey: "AIzaSyDig0LXShXvoUC-Q_jsB4fnt04ndT4AKMI",
       authDomain: "fucking-semantic.firebaseapp.com",
@@ -41,143 +29,35 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // 2. 題庫與核心變數
-    const wordBank = {
-      "動物": { high: ["非洲象", "班馬", "黃金獵犬", "老虎", "獅子"], low: ["駱駝", "狐狸", "鴨嘴獸", "驢子", "麻雀"] },
-      "器官": { high: ["心臟", "小腸", "腎臟", "肝臟", "大腸"], low: ["肺臟", "胰臟", "子宮", "膀胱", "睪丸"] },
-      "家具": { high: ["木桌", "化妝台", "沙發", "椅子", "衣櫥"], low: ["冷氣", "洗衣機", "鞋櫃", "馬桶", "冰箱"] },
-      "文具": { high: ["自動筆", "鉛筆", "原子筆", "橡皮擦", "奇異筆"], low: ["膠水", "麥克筆", "直尺", "量角器", "三角板"] },
-      "服飾": { high: ["裙子", "褲子", "內衣", "洋裝", "襯衫"], low: ["緊身衣", "吊帶背心", "睡衣", "短裙", "羽绒衣"] },
-      "植物": { high: ["牡丹花", "波斯菊", "菊花", "牽牛花", "向日葵"], low: ["含羞草", "竹子", "松樹", "稻草", "楓樹"] },
-      "樂器": { high: ["鋼琴", "提琴", "吉他", "長笛", "貝斯"], low: ["爵士鼓", "嗩吶", "陶笛", "木魚", "三角鐵"] },
-      "武器": { high: ["手槍", "甩棍", "武士刀", "步槍", "雙節棍"], low: ["核彈", "火箭筒", "飛彈", "戰車", "坦克"] },
-      "職業": { high: ["老師", "會計師", "教授", "校長", "公務員"], low: ["水電工", "祕書", "護士", "警衛", "農夫"] },
-      "運動": { high: ["騎腳踏車", "跑步", "重訓", "籃球", "羽毛球"], low: ["空手道", "滑雪", "跨欄", "射箭", "標槍"] },
-      "飲料": { high: ["紅茶", "麥茶", "多多綠", "牛奶", "咖啡"], low: ["普洱茶", "抹茶", "燕麥奶", "香檳", "茉莉花茶"] }
-    };
-    const allCategories = Object.keys(wordBank);
-    let sub_id = "PLAYER_" + Math.floor(Math.random() * 100000);
+    // 產生一個帶有 EXIT_TEST 的隨機 ID，方便你後台認出來
+    const sub_id = "EXIT_TEST_" + Math.floor(Math.random() * 100000);
 
-    function shuffle(arr) { return arr.sort(() => Math.random() - 0.5); }
-
-    function generateBlockTrials(coreCategory, correlationType) {
-      let trials = [];
-      let remCat = shuffle(allCategories.filter(c => c !== coreCategory));
-      let g1 = shuffle([...wordBank[coreCategory][correlationType]]);
-      
-      for (let i=0; i<5; i++) trials.push({ cue: coreCategory, target: g1[i], match: true, condition: "repeat_match" });
-      for (let i=0; i<5; i++) trials.push({ cue: coreCategory, target: wordBank[remCat[i]][correlationType][i], match: false, condition: "repeat_mismatch" });
-      for (let i=0; i<5; i++) trials.push({ cue: remCat[i], target: wordBank[remCat[i]][correlationType][0], match: true, condition: "non-repeat_match" });
-      for (let i=5; i<10; i++) trials.push({ cue: remCat[i], target: wordBank[remCat[i-5]][correlationType][1], match: false, condition: "non-repeat_mismatch" });
-      
-      return shuffle(trials);
-    }
-
-    const selectedCategories = shuffle([...allCategories]).slice(0, 6);
-    const blockConditions = shuffle(['high', 'high', 'high', 'low', 'low', 'low']);
-
-    // 3. 開始建立測驗流程
-    const jsPsych = initJsPsych();
-    let timeline = [];
-
-    timeline.push({
-      type: jsPsychSurveyText,
-      questions: [{prompt: "<h2 style='color:white;'>請輸入您的代號或暱稱</h2>", name: 'username', required: true}],
-      button_label: "開始",
-      on_finish: function(data){ if(data.response.username) sub_id = data.response.username.trim(); }
-    });
-
-    timeline.push({
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: `
-        <div style="text-align:left; background:#333; padding:20px; border-radius:10px;">
-          <h2 style="color:#3498db; text-align:center;">操作說明</h2>
-          <p>1. 判斷詞彙是否符合上方類別。</p>
-          <p>✅ 符合 ➔ 按 <b>綠色按鈕 (或鍵盤F)</b></p>
-          <p>❌ 不符 ➔ 按 <b>紅色按鈕 (或鍵盤J)</b></p>
-          <p style="color:#f1c40f;">【附註】家電屬於家具；器官僅限人體；職業與動物絕對不重疊。</p>
-          <p style="color:#e74c3c; font-weight:bold; text-align:center;">每題限時 2.5 秒，請緊盯螢幕！</p>
-        </div>
-        <br><p style="color:#aaa;">點擊下方按鈕或按空白鍵開始</p>
-      `,
-      choices: [" "],
-      prompt: `<button class="btn btn-f" onclick="document.dispatchEvent(new KeyboardEvent('keydown', {key: ' '}))">我了解了，開始</button>`
-    });
-
-    selectedCategories.forEach((cat, idx) => {
-      let trials = generateBlockTrials(cat, blockConditions[idx]);
-      
-      trials.forEach(t => {
-        timeline.push({ type: jsPsychHtmlKeyboardResponse, stimulus: '', choices: "NO_KEYS", trial_duration: 800 });
+    // 💡 核心邏輯：偵測到頁面被隱藏 (滑掉、切換APP) 時，立刻執行上傳
+    const emergencyUpload = () => {
+      // visibilityState === 'hidden' 代表畫面不在使用者的視線內了
+      if (document.visibilityState === 'hidden') {
         
-        timeline.push({
-          type: jsPsychHtmlKeyboardResponse,
-          stimulus: `<div class="trial-box"><div class="cue">${t.cue}</div><div class="target"></div></div>`,
-          choices: "NO_KEYS", trial_duration: 800
+        // 瞬間寫入 Firebase
+        setDoc(doc(db, "results", sub_id), {
+          subjectId: sub_id,
+          message: "⚠️ 受試者滑掉網頁了！成功觸發背景自動回傳！",
+          timestamp: new Date().toLocaleString("zh-TW"),
+          saveType: "Emergency_AutoSave"
+        }).then(() => {
+          console.log("背景上傳成功");
+        }).catch((e) => {
+          console.error("背景上傳失敗", e);
         });
 
-        timeline.push({
-          type: jsPsychHtmlKeyboardResponse,
-          choices: ['f', 'j'],
-          trial_duration: 2500,
-          data: { phase: 'test', block_order: idx + 1, block_condition: blockConditions[idx], cue: t.cue, target: t.target, condition: t.condition, match: t.match },
-          stimulus: `
-            <div class="trial-box">
-              <div class="cue">${t.cue}</div>
-              <div class="target">${t.target}</div>
-              <div class="btn-container">
-                <button id="btn-f" class="btn btn-f">符合(F)</button>
-                <button id="btn-j" class="btn btn-j">不符(J)</button>
-              </div>
-            </div>`,
-          on_load: () => {
-            document.getElementById('btn-f').onclick = () => jsPsych.finishTrial({response: 'f'});
-            document.getElementById('btn-j').onclick = () => jsPsych.finishTrial({response: 'j'});
-          },
-          on_finish: (data) => {
-            data.correct = (data.response === 'f' && t.match) || (data.response === 'j' && !t.match);
-            data.timeout = (data.response === null);
-          }
-        });
-      });
-
-      if (idx < 5) {
-        timeline.push({
-          type: jsPsychHtmlKeyboardResponse,
-          choices: [" "],
-          stimulus: `<h2>階段 ${idx+1}/6 完成</h2><p>請稍微休息。<br><br><span style="color:#e74c3c;">下一階段即將開始，請緊盯螢幕！</span><br><br>按空白鍵或點擊下方繼續</p>`,
-          prompt: `<button class="btn btn-f" onclick="document.dispatchEvent(new KeyboardEvent('keydown', {key: ' '}))">繼續下一階段</button>`
-        });
       }
-    });
+    };
 
-    // 4. 極簡、穩定的自動上傳機制 (不再需要按任何送出鍵)
-    timeline.push({
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: "<h2 id='upload-msg'>測驗結束！正在自動上傳資料...</h2>",
-      choices: "NO_KEYS",
-      on_load: async () => {
-        const msg = document.getElementById('upload-msg');
-        try {
-          const finalData = jsPsych.data.get().filter({phase: 'test'}).values();
-          await setDoc(doc(db, "results", sub_id), { 
-            subjectId: sub_id, 
-            trialsData: finalData,
-            completionTime: new Date().toLocaleString("zh-TW"),
-            totalTrials: finalData.length,
-            accuracy: Math.round((jsPsych.data.get().filter({phase: 'test', correct: true}).count() / 120) * 100),
-            device: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
-          });
-          msg.innerHTML = "✅ 資料自動上傳成功！<br>感謝您的參與，您可以關閉此網頁了。";
-          msg.style.color = "#2ecc71";
-        } catch(e) {
-          msg.innerHTML = "❌ 上傳失敗：" + e.message;
-          msg.style.color = "#e74c3c";
-        }
-      }
-    });
+    // 💡 綁定兩種最可靠的離開事件
+    // 1. visibilitychange: 針對手機切換 APP、暗屏、滑回桌面
+    document.addEventListener("visibilitychange", emergencyUpload);
+    // 2. pagehide: 針對直接關閉瀏覽器分頁
+    window.addEventListener("pagehide", emergencyUpload);
 
-    jsPsych.run(timeline);
   </script>
 </body>
 </html>
